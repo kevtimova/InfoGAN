@@ -2,3 +2,4 @@ prettytensor
 progressbar
 python-dateutil
 ipdb
+python-gflags==2.0

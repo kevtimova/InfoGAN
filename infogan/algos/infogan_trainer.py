@@ -5,6 +5,7 @@ import numpy as np
 from progressbar import ETA, Bar, Percentage, ProgressBar
 from infogan.misc.distributions import Bernoulli, Gaussian, Categorical
 import sys
+import os
 
 TINY = 1e-8
 
@@ -19,7 +20,6 @@ class InfoGANTrainer(object):
                  checkpoint_dir="ckt",
                  max_epoch=100,
                  updates_per_epoch=100,
-                 snapshot_interval=10000,
                  info_reg_coeff=1.0,
                  discriminator_learning_rate=2e-4,
                  generator_learning_rate=2e-4,
@@ -34,7 +34,6 @@ class InfoGANTrainer(object):
         self.exp_name = exp_name
         self.log_dir = log_dir
         self.checkpoint_dir = checkpoint_dir
-        self.snapshot_interval = snapshot_interval
         self.updates_per_epoch = updates_per_epoch
         self.generator_learning_rate = generator_learning_rate
         self.discriminator_learning_rate = discriminator_learning_rate
@@ -207,6 +206,8 @@ class InfoGANTrainer(object):
 
     def train(self):
 
+        ckt_path = "%s/%s.ckpt" % (self.checkpoint_dir, self.exp_name)
+
         self.init_opt()
 
         init = tf.initialize_all_variables()
@@ -218,6 +219,10 @@ class InfoGANTrainer(object):
             summary_writer = tf.train.SummaryWriter(self.log_dir, sess.graph)
 
             saver = tf.train.Saver()
+
+            if os.path.isfile(ckt_path):
+                saver.restore(sess, ckt_path)
+                print("Model loaded from file: %s" % ckt_path)
 
             counter = 0
 
@@ -239,10 +244,8 @@ class InfoGANTrainer(object):
                     all_log_vals.append(log_vals)
                     counter += 1
 
-                    if counter % self.snapshot_interval == 0:
-                        snapshot_name = "%s_%s" % (self.exp_name, str(counter))
-                        fn = saver.save(sess, "%s/%s.ckpt" % (self.checkpoint_dir, snapshot_name))
-                        print("Model saved in file: %s" % fn)
+                fn = saver.save(sess, ckt_path)
+                print("Model saved in file: %s" % fn)
 
                 x, _ = self.dataset.train.next_batch(self.batch_size)
 

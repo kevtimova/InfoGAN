@@ -1,0 +1,610 @@
+\documentclass{article}
+
+% if you need to pass options to natbib, use, e.g.:
+% \PassOptionsToPackage{numbers, compress}{natbib}
+% before loading nips_2016
+%
+% to avoid loading the natbib package, add option nonatbib:
+% \usepackage[nonatbib]{nips_2016}
+
+% \usepackage{nips_2016}
+
+% to compile a camera-ready version, add the [final] option, e.g.:
+\usepackage[nonatbib,final]{nips_2016}
+
+% Custom:
+\usepackage{hyperref}
+
+\newcommand{\footlabel}[2]{%
+    \addtocounter{footnote}{1}%
+    \footnotetext[\thefootnote]{%
+        \addtocounter{footnote}{-1}%
+        \refstepcounter{footnote}\label{#1}%
+        #2%
+    }%
+    $^{\ref{#1}}$%
+}
+
+\newcommand{\footref}[1]{%
+    $^{\ref{#1}}$%
+}
+
+\usepackage{bbm}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{empheq}
+\usepackage{enumitem}
+
+\newcommand{\p}{\mathbbm{P}}
+\newcommand{\e}{\mathbbm{E}}
+\newcommand{\R}{\mathbbm{R}}
+\newcommand{\n}{\newline}
+\newcommand{\tm}{\textrm}
+\newcommand{\var}{\tm{Var}}
+\newcommand{\cov}{\tm{Cov}}
+\newcommand{\I}{\mathbbm{I}}
+
+% \DeclareMathOperator*{\argmin}{arg\,min}
+% \DeclareMathOperator*{\argmax}{arg\,max}
+
+\usepackage[
+backend=biber,
+style=alphabetic,
+sorting=ynt
+]{biblatex}
+\addbibresource{references.bib}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{multicol}
+\usepackage{subcaption}
+
+
+\title{Understanding Mutual Information \\ and its Use in InfoGAN}
+
+% The \author macro works with any number of authors. There are two
+% commands used to separate the names and addresses of multiple
+% authors: \And and \AND.
+%
+% Using \And between authors leaves it to LaTeX to determine where to
+% break the lines. Using \AND forces a line break at that point. So,
+% if LaTeX puts 3 of 4 authors names on the first line, and the last
+% on the second line, try using \AND instead of \And before the third
+% author name.
+
+\author{
+  Katrina Evtimova \thanks{Both authors contributed equally and were advised by David Sontag. } \\
+  Center for Data Science \\
+  New York University\\
+  \texttt{kve216@nyu.edu} \\
+  %% examples of more authors
+   \And
+   Andrew Drozdov $^{*}$ \\
+   Courant Institute for Mathematical Sciences \\
+   New York University \\
+   \texttt{apd283@nyu.edu} \\
+  %% \AND
+  %% Coauthor \\
+  %% Affiliation \\
+  %% Address \\
+  %% \texttt{email} \\
+  %% \And
+  %% Coauthor \\
+  %% Affiliation \\
+  %% Address \\
+  %% \texttt{email} \\
+  %% \And
+  %% Coauthor \\
+  %% Affiliation \\
+  %% Address \\
+  %% \texttt{email} \\
+}
+
+\begin{document}
+% \nipsfinalcopy is no longer used
+
+\maketitle
+
+\begin{abstract}
+
+\begin{itemize}
+    Interpretable variables are useful in generative models. Generative Adversarial Networks (GANs) are generative models that are flexible in their input. The Information Maximizing GAN (InfoGAN) ties the output of the generator to a component of its input called the latent codes. By forcing the output to be tied to this input component, we can control some properties of the output representation. It is notoriously difficult to find the Nash equilibrium when jointly training the discriminator and generator in a GAN. We uncover some successful and unsuccessful configurations for generating images using InfoGAN.
+\end{itemize}
+    
+\end{abstract}
+
+\section{Introduction}
+
+The goal of a generative model is to approximate the distribution of some real data. In the case of labeled data and supervised discriminative learning, it is easy to approximate the distribution of labels using a classifier. It is somewhat more difficult to approximate the likelihood of every pixel and the structure between pixels when generating images. Approached from the supervised discriminative perspective, there will be a large label space that makes learning intractable.
+
+When generating images without labels, Autoencoders provide an alternative solution. They treat the input as the target and calculate a reconstruction loss. That being said, there are many tricks required to get learning with Autoencoders to be effective such as choosing the right structure for intermediate layers and encouraging a sparse representation.
+
+% How do you generate images that you haven't seen with an Autoencoder? If using the Variational Autoencoder (VAE) from Kingma et al. \cite{kingma_ae}, can modify the inputs to the recognition network and explore alternatives to the generated image in a smooth way. This is useful, but it would be preferential to 
+
+% Gumbel softmax lets you do categorical vae
+
+% Can remove the input layer of the Autoencoder. Then you are left with a model that given some noise will create an image. Except this might not work well because we didn't train the Autoencoder specifically in this way.
+
+Even though Autoencoders and their variants (such as the Variational Autoencoder (VAE) \cite{kingma_ae} and Denoising Autoencoder \cite{VincentBengioStackedAE}) are useful, it is desirable to have alternative models with different properties. One such model is the Generative Adversarial Network (GAN) \cite{goodfellow2014generative}. The generator in GANs is similar in structure to the part of VAEs which approximates the probability of the input, say an image, given some latent state. Since the generator does not get an image as input, it is not possible to use reconstruction loss. Instead, GANs use a discriminator. We run the discriminator once on real input and once on generated input, then optimize using a summation of these two outputs. This is commonly known as the minimax game. In practice, one can try finding a balance in the ``schedule'', giving the discriminator batches of $N_{real}$ real inputs and $N_{fake}$ generated inputs to keep it from becoming too confident in either direction. However, at a workshop in this past NIPS, it has been recommended to avoid wasting time and resources in finding this schedule \cite{howtotrainagan2016}.
+
+An obvious problem in the typical GAN setup is that the generator might become specialized at creating only certain types of images. In the case of generating handwritten digits, there is no specific component that indicates that the generator should uniformly create digits from 0-9 because the generator has no knowledge of which real image is being selected. We would like to force the GAN to create images uniformly among the possible classes. Fortunately, there has been recent work that builds a setup along these lines.
+
+InfoGAN is a model that retains mutual information between its input and output. Unlike the Denoising Autoencoder \cite{VincentBengioStackedAE}, InfoGAN gives freedom to specify which component of the input should be retained. If one of these components is a categorical variable, and the model learns to retain the class information based on this categorical variable, then we can solve the problem mentioned in the previous paragraph. Training models in this fashion has been otherwise called disentangling an interpretable representation \cite{kulkarni2015deep}.
+
+Providing a categorical variable and then incorporating mutual information into the loss of the generator sounds reasonable, but it is actually remarkable that class information is retained. After all, there is no specific component indicating that the categorical variable represents class information. It could just as equally represent the tilt or width of the images. In this work we intend to empirically evaluate how well different latent codes work, and discuss ideas about why mutual information works so well.
+
+The motivating questions for this paper are:
+
+\begin{itemize}
+    \item How is InfoGAN any different from Vanilla GAN?
+    \item Is prior knowledge about the data critical when assigning latent codes?
+    \item Is the encoder network a classifier or something else?
+    \item How can we leverage interpretable latent codes in other scenarios?
+\end{itemize}
+
+The first two questions are explored in the following sections. Meanwhile the second two remain unanswered, but we believe we've developed an understanding towards addressing them in future work.
+
+\section{Background}
+
+\subsection{Vanilla GAN}
+General Adversarial Networks (GANs) \cite{goodfellow2014generative} are a powerful framework for extracting high-level representations of data. The main idea behind GANs is to simultaneously train two networks acting against one another - a generator $G$ and a discriminator $D$. The generator $G$ creates a data sample given random noise $z$ which comes from a prior distribution $p_z(z)$. The goal of $G$ is to learn the underlying data distribution while the task of the discriminator is to distinguish between samples coming from $G$ and samples coming from the original training data. The "vanilla" GAN objective function is given by:
+\begin{align}\label{GANloss}
+    V(D,G) & = \e_{x\sim P_{\rm{data}}}[\log(D(x)) ] + \e_{z\sim \rm{noise}} [\log (1- D(G(z)))] 
+\end{align}
+If we set $p_r$ to be the real data distribution (which is unknown but can be sampled from) and $p_g$ to be the distribution implicitly defined by the generator $G$ (obtained from the generated samples $G(z)$), then \cite{goodfellow2014generative} show that GANs optimize the Jensen-Shannon divergence derived from the KL divergence:
+\begin{align}\label{JSD}
+JSD(p_r\|p_g)& = KL\Big(p_r \Big\| \frac{p_r+p_g}{2}\Big) + KL\Big(p_g\Big\|\frac{p_r+p_g}{2}\Big)
+\end{align}
+
+Although this framework is theoretically appealing, a common practical issue with GANs is that optimizing the loss function can suffer from instability, making them difficult to train \cite{Goodfellow-et-al-2016-Book}. The original GAN paper \cite{goodfellow2014generative} mentions the issue of saturation or, in other words,  insufficient gradients for the generator $G$ to learn. This phenomenon is observed early in training when $G$'s performance is weak and the discriminator $D$ can easily tell apart real from generated images. More specifically, the term $\log(1-D(G(z)))$ in equation $(\ref{GANloss})$ is close to zero when $D$ assigns a low probability for $G(z)$ coming from the real data distribution. The proposed approach for addressing this issue is the following: instead of minimizing $\log(1-D(G(z)))$, the generator $G$ can initially be trained to maximize $D(G(z))$. According to \cite{howtotrainagan2016}, however, this alternative objective does not help with stabilizing optimization. Understanding the optimization dynamics of GANs is an active area of research and \cite{howtotrainagan2016} presents some key techniques for training GANs. In this paper, we justify empirically one of them, namely perturbing the generator's input. 
+
+\subsection{InfoGAN}
+InfoGAN \cite{chen2016infogan} builds upon the the GAN framework by generating interpretable representations for the latent variables in the model. The key idea is to split latent variables into a set $c$ of interpretable ones and a source of uninterpretable noise $z$. Interpretablity is encouraged by adding an extra term in the original GAN objective function capturing the mutual information between the interpretable variables $c$ and the output from the generator. More precisely, the InfoGAN minimax optimization is defined as:
+\begin{equation}
+\label{infoGANobj}\min_G\max_D V_{IG} (D,G) = V(D,G) - \lambda\cdot\I (c;G(z,c))    
+\end{equation}
+where $G$ is the generator, $D$ is the discriminator, $z$ is the uninterpretable noise, $c$ encodes the salient latent codes and the Mutual Information ($\I$) is given by:
+\begin{align}\label{MI}
+\I(c; G(z,c) ) & = \rm{Entropy}(c) - \rm{Entropy}(c|G(z,c))
+\end{align}
+As seen in $(\ref{infoGANobj})$, the novelty of the InfoGAN objective function compared to the regular GAN one is the introduction of a regularization term involving the mutual information between the latent codes $c$ and the generator $G$. Note that the second entropy term in (\ref{MI}) requires access to the posterior $p(c| G(z,c))$ which is approximated by the discriminator network. 
+
+As explained in \cite{VincentBengioStackedAE}, mutual information can be utilized whenever we are interested in learning a parametrized mapping from a given input $X$ to a higher level representation $Y$ which preserves information about the original input. More formally, if we are interested in a mapping $q(Y|X;\theta)$ which preserves information about $X$, where $\theta$ are the parameters to be learned, this can be achieved by maximizing the mutual information between $X$ and $Y$, $\I(X;Y)$. This is referred to as the \textit{infomax principle} and in the case of InfoGAN translates to maximizing the mutual information between the latent codes $c$ and the output from the generative network, $G(z,c)$. 
+
+Moreover, \cite{VincentBengioStackedAE} show that the task of maximizing mutual information is essentially equivalent to training an autoencoder to minimize reconstruction error. What this implies is that learning a mapping that ties $c$ with $G(z,c)$ can be interpreted as incorporating or encoding $c$ as closely as possible in the output $G(z,c)$. In a sense, 
+the codes in $c$ serve as a label for the outputs generated from $G$.
+
+\begin{figure}[ht]
+\centering \textbf{GAN and its cousins}
+\includegraphics[width=1.0\linewidth]{img/research/gans_new}
+\caption{Graphical representation of different GAN configurations: (a) Vanilla GAN; (b) InfoGAN; (c) InfoGAN w/ only latent codes. The style of these diagrams was inspired by \cite{odena2016conditional}. %(d) InfoGAN by feeding the real data into the mutual information.
+}
+\label{graphicalGAN}
+\end{figure}
+\section{Methods}
+
+\subsection{InfoGAN and MNIST}
+
+The InfoGAN paper runs two experiments that hold particular interest. The first one is a GAN with an encoder network Q that maximizes the lower bound to the mutual information $\I(c;G(z,c))$ where $c$ contains one categorical and two continuous latent codes. The discriminator $D$, generator $G$, and encoder $Q$ are optimized jointly. The second one has a similar setup but $Q$ is only tied to $D$.
+
+The first experiment demonstrates a configuration where mutual information is maximized while the second experiment does not, showing that there is nothing implicitly tying the input of the generator to its output (although perhaps this phenomenon could be observed in a different neural network architecture).
+
+There are a few configurations that are not attempted in the InfoGAN paper that we attempt.
+
+\textbf{No noise.} Why use a noise vector when there are interpretable latent codes? MNIST seems simple enough that there should still be plausible images.
+
+\textbf{No noise and no continuous codes.} Using only a single categorical code, we would expect there to be only $N$ possible images, where $N$ are how many values this variable can represent.
+
+\textbf{No encoder.} Although the original paper already has some negative results to this light, disregarding the encoder entirely is slightly different, and perhaps the GAN can succeed in realizing its latent codes have meaning.
+
+\subsection{InfoGAN and BasicProp}
+
+Does InfoGAN work with any data? This is a question we intend to investigate. Using synthetic data is a proven tactic for evaluating the power of models. We evaluate InfoGAN with a new dataset called BasicProp, laying the foundation to test the limitations of InfoGAN and similar models in a precise manner.
+
+BasicProp has two flavors: line and rectangles. The line version is meant to be a proxy for MNIST. It has 10 positions, and therefore can be bucketed into 10 categories. The rectangles version is similar, except it contains two parallel rectangles, each of 10 possible heights, so $10^2$ categories. We believe it would be interesting to see whether these extended categories can be captured with the same configuration, and optimistically hope the continuous codes might capture something useful such as a ratio of the heights.
+
+BasicProp matches the dimensionality and color properties of MNIST. Nonetheless, we found it surprisingly difficult to train InfoGAN with BasicProp, which we discuss in more depth in a later section. Both variants of the dataset and the code used to generate them are available on our Github repository\footnote{\url{https://github.com/kevtimova/InfoGAN}}.
+
+
+
+% The original InfoGAN experiments were run on MNIST using 3 interpretable latent codes $c$ plus the typical latent noise $z$ experienced in a GAN. The latent codes represent label ($c_1$), rotation ($c_2$), and width ($c_3$). We believe that InfoGAN has capacity to encapsulate a slew of interesting image qualities besides these, but that MNIST's complexity may already be limited. For this reason, we intend to create two new datasets inspired by MNIST. 
+
+% The first additional dataset would be an augmentation of MNIST that includes colored digits and digits from $0$ to $99$. The second dataset would be a synthetic collection of images generated for the purpose of testing whether their latent information can be captured in interpretable variables. 
+
+\section{Experimental Setup}
+% The code for our experiments is adopted from the OpenAI implementation of InfoGAN available on GitHub \footnote{\url{https://github.com/openai/InfoGAN}}. 
+% In practice, the Mutual Information term in InfoGAN is implemented as an encoder network. This encoder network is an MLP that classifies the generated image as fake or real. The updates from the discriminator encourage the encoder network to make classifications that match the latent codes. 
+
+Table summarizing our experiments
+%(where $c_{cat}^+$ has more degrees of freedom than $c_{cat}$)
+:
+
+\begin{figure}[ht]
+\centering
+\begin{tabular}{|c|c|c|c|}\hline
+   Model & $G(c,z)$ & $\I(c; g)$ & $\lambda$ \\\hline\hline
+   Vanilla GAN (original) & $c=\emptyset$, $z\sim p_z$ & - & 0\\\hline
+   Vanilla GAN + latent & $c=\{c_{cat}, c_{cont1}, c_{cont2}\}$, $z\sim p_z$ & - & 0\\\hline
+   InfoGAN (original) & $c=\{c_{cat}, c_{cont1}, c_{cont2}\}$, $z\sim p_z$ & $g=G(z,c)$ & 1 \\\hline
+   InfoGAN (only latent) & $c=\{c_{cat}, c_{cont1}, c_{cont2}\}$, no $z$ & $g = G(c) $ & 1 \\\hline
+   InfoGAN (only latent categorical)  & $c=\{c_{cat}\}$, no $z$  & $g = G(c_{cat})$ & 1 \\\hline
+   InfoGAN (thought on $\I$) & $c=\{c_{cat}, c_{cont1}, c_{cont2}\}$, $z\sim p_z$ & $g=x$ & 1 \\\hline
+   %InfoGAN (+) & $c=\{c_{cat}^+, c_{cont1}, c_{cont2}\}$, $z\sim p_z$ & $g=G(z,c)$ & 1 \\\hline
+   BASICPROP Line & $c=\{c_{cat}, c_{cont1}, c_{cont2}\}$, $z\sim p_z$ & $g=G(z,c)$ & 1 \\\hline
+   BASICPROP Rectangle & $c=\{c_{cat}, c_{cont1}, c_{cont2}\}$, $z\sim p_z$ & $g=G(z,c)$ & 1 \\\hline
+\end{tabular}
+\end{figure}
+
+\section{Results \& Analysis}
+
+Experiments in sections 5.1 - 5.4 use InfoGAN for MNIST, 5.5 - 5.6 Vanilla GAN (no mutual information) for MNIST, and 5.7 - 5.8 InfoGAN for BasicProp.
+
+\subsection{InfoGAN: Baseline}
+
+In \cite{chen2016infogan}, three interpretable latent codes are fed to the generator $G$ - one categorical ($c_1$) and two continuous uniformly distributed ($c_2, c_3$). Remarkably, the categorical code $c_1$ is able to capture the digit class of each generated image while $c_2$ and $c_3$ represent rotation and width, respectively.
+
+% \begin{figure}[ht]
+% \centering
+% \begin{subfigure}{.33\textwidth}
+%   \centering
+%   \includegraphics[width=.9\linewidth]{img/InfoGAN/InfoGAN_c1}
+%   \caption{Categorical Code - Image type}
+%   \label{fig:sub1}
+% \end{subfigure}%
+% \begin{subfigure}{.33\textwidth}
+%   \centering
+%   \includegraphics[width=.9\linewidth]{img/InfoGAN/InfoGAN_c2}
+%   \caption{Uniform Code 1 - Rotation}
+%   \label{fig:sub2}
+% \end{subfigure}
+% \begin{subfigure}{.33\textwidth}
+%   \centering
+%   \includegraphics[width=.9\linewidth]{img/InfoGAN/InfoGAN_c2}
+%   \caption{Uniform Code 2 - Width}
+%   \label{fig:sub3}
+% \end{subfigure}
+% \caption{InfoGAN interpretable latent codes.}
+% \label{InfoGAN_c}
+% \end{figure}
+
+\subsection{InfoGAN: No Latent Noise}
+%\subsection{Removing Incompressible Noise $z$}
+The incompressible noise variable $z$ is removed and only interpretable latent codes $c$ are present - one categorical and two uniform. The Mutual Information term is also present. This setup assumes that the model can capture all the information in the input data using some prior assumptions. This seems very similar to Gaussian Mixture Models. In practice, we found that using only latent codes is a bold way to model data. When using a single categorical code, the model can only generate 10 images. Adding more latent codes, which would usually capture something like tilt of the digit, seems to work well. This suggests that these continuous codes are being used to capture an excessive amount of information that can not necessarily be interpreted.
+
+Generator outputs for different values of the latent codes are presented in Figure $\ref{no-z}$. It is interesting to note that the first uniform code is able to capture transformations between classes of numbers (e.g. 0 to 8, 4 to 7) compared to the original InfoGAN in which the uniform codes are capturing rotation and width. A possible interpretation of this result is that some of the variance in the data which the noise variable $z$ accounts for in InfoGAN is passed onto the latent codes $c$ in the case when $z$ is removed, resulting in more complex transformations which are harder to interpret.
+
+\begin{figure}[ht]
+\centering
+\begin{subfigure}{.33\textwidth}
+  \centering
+  \includegraphics[width=.9\linewidth]{img/no_z/no-z_cat}
+  \caption{Categorical Code}
+  \label{fig:sub1}
+\end{subfigure}%
+\begin{subfigure}{.33\textwidth}
+  \centering
+  \includegraphics[width=.9\linewidth]{img/no_z/no-z_unif1}
+  \caption{Uniform Code 1}
+  \label{fig:sub2}
+\end{subfigure}
+\begin{subfigure}{.33\textwidth}
+  \centering
+  \includegraphics[width=.9\linewidth]{img/no_z/no-z_unif2}
+  \caption{Uniform Code 2}
+  \label{fig:sub3}
+\end{subfigure}
+\caption{Experiment removing incompressible noise $z$.}
+\label{no-z}
+\end{figure}
+
+\subsection{InfoGAN: Only a Categorical Code}
+%\subsection{Keeping a Single Categorical Latent Code}
+The only noise variable is a latent categorical code $c_{cat}$ of dimension 10 for the 10 classes of integers in MNIST. Visualization of the generator outputs for different values of $c_{cat}$ are found in Figure $\ref{only-cat-no-MI}$ (a). It is evident that $c_{cat}$ is still able to detect different classes of integers but we observe that the quality of the outputs and their variance is lower when compared with the outputs from models with higher dimensional latent code space. 
+
+% Figures $(\ref{DG_loss-no_z})$
+%  and $(\ref{MI-no_z})$ compare the discriminator and generator loss and mutual information between InfoGAN with just one categorical latent variable as noise and InfoGAN with three latent variables as noise.
+% \begin{figure}[ht]
+% \centering
+% \begin{subfigure}{.5\textwidth}
+%   \centering
+%   \includegraphics[width=.9\linewidth]{img/no_z/no_z_discriminator_loss}
+%   \caption{Discriminator loss (orange - single categorical, blue - three latent codes)}
+%   \label{fig:sub1}
+% \end{subfigure}%
+% \begin{subfigure}{.5\textwidth}
+%   \centering
+%   \includegraphics[width=.9\linewidth]{img/no_z/no_z_generator_loss}
+%   \caption{Generator loss (orange - single categorical, blue - three latent codes)}
+%   \label{fig:sub2}
+% \end{subfigure}
+% \caption{Removing noise variable $z$}
+% \label{DG_loss-no_z}
+% \end{figure}
+
+% \begin{figure}[ht]
+%     \centering
+%     \includegraphics[width=.5\linewidth]{img/no_z/MI_no_z}
+%     \caption{Mutual Information without $z$ (orange - single categorical, blue - three latent codes)}
+%     \label{MI-no_z}
+% \end{figure}
+
+\subsection{IngoGAN: Thought Experiment on Mutual Information}
+%\subsection{Thought Experiment} 
+
+Modifying the mutual information term $\I(c; G(z,c))$ in the objective function (\ref{infoGANobj}) by replacing $G(z,c)$, the sample coming from $G$, with the original input $x$. However,  computing $\I(c,x)$ is not feasible since computing the entropy incorporated in mutual information would require knowledge of the original data distribution $p_{\rm{real}}(X)$ which is not available. The generator mapping $G(z,c)$ is the closest approximation to $p_{\rm{real}}(X)$ available in the InfoGAN model framework.
+
+\subsection{Vanilla GAN: No Latent Codes}
+
+A Vanilla GAN was trained - one without interpretable latent variables and no Mutual Information term in the objective function. We observed that training of the generator was unstable using the built-in settings. Following advice from \cite{howtotrainagan2016} and using SGD as optimization method for the discriminator and Adam for the generator did not yield better results, either. It is possible that adding noise to the real input images might have helped with training, as suggested in Section 6.
+
+\subsection{Vanilla GAN: Latent Codes}
+
+There is no mutual information but parts of the input fed to the generator $G$ have prior distributions. As suspected, this model is unsuccessful in disentangling interpretable representations of the input data displayed in Figure \ref{only-cat-no-MI} (b, c, d).
+
+\begin{figure}[ht]
+\begin{subfigure}{.23\textwidth}
+\centering
+\includegraphics[width=0.9\linewidth]{img/just_cat/just_cat}
+\caption{InfoGAN w/ only $c_{cat}$ }
+\label{just_cat}
+\end{subfigure}
+\begin{subfigure}{.23\textwidth}
+  \centering
+  \includegraphics[width=.9\linewidth]{img/no_MI/no_MI_c1}
+  \caption{Vanilla GAN $c_{cat}$}
+  \label{fig:sub1}
+\end{subfigure}%
+\begin{subfigure}{.23\textwidth}
+  \centering
+  \includegraphics[width=.9\linewidth]{img/no_MI/no_MI_c2}
+  \caption{Vanilla GAN $c_{unif1}$}
+  \label{fig:sub2}
+\end{subfigure}
+\begin{subfigure}{.23\textwidth}
+  \centering
+  \includegraphics[width=.9\linewidth]{img/no_MI/no_MI_c3}
+  \caption{Vanilla GAN $c_{unif2}$}
+  \label{fig:sub3}
+\end{subfigure}
+\caption{InfoGAN + one categorical, Vanilla GAN + 3 latent codes}
+\label{only-cat-no-MI}
+\end{figure}
+
+\subsection{BasicProp: Line}
+
+The first example we decide to evaluate in the synthetic dataset is a white vertical line on a black background. It was necessary to add noise to the foreground in order for training to stabilize.
+
+Interestingly, the cross entropy and mutual information between an MNIST run and BasicProp run are similar, but the generator and discriminator losses are drastically different. This indicates that although mutual information makes results more interpretable, having high mutual information is not a proxy for generating good images. This makes sense as the encoder has no premise of real and fake images.
+
+\begin{figure}[ht]
+\begin{center}
+\begin{multicols}{3}
+
+Discrete
+
+\includegraphics[width=1.4in]{img/basicprop_line/basicprop_line_c1.png}
+
+\includegraphics[width=1.4in]{img/basicprop_line/cross_entropy.png}
+\includegraphics[width=1.4in]{img/basicprop_line/discriminator_loss.png}
+
+\includegraphics[width=1.4in]{img/basicprop_line/generator_loss.png}
+\includegraphics[width=1.4in]{img/basicprop_line/mutual_info.png}
+\end{multicols}
+
+\caption{Various graphs that use the InfoGAN setup with 3 latent codes (1 discrete, 2 continuous). The orange line represents MNIST and the red line represents BASICPROP-line. The generated BASICPROP images were unrecognizable until the generator/discriminator loss hit a tipping point.}
+
+\end{center}
+\end{figure}
+
+\subsection{BasicProp: Rectangles}
+
+% It was necessary to add noise to the foreground and background for this experiment to stabilize. Nonetheless, 
+
+This experiment was not successful in disentangling interpretable latent variables. The first attempt used only foreground noise and eventually the ratio of the generated to real images went to 0. By decreasing the learning rate of the discriminator, we can train for longer but the generator never recovers. Adding background noise alleviates the problem, except the discriminator becomes too adept, and the generator still never recovers. A simple experiment which we did not get to try was adding a second categorical variable. This experiment shows that having prior knowledge of your data is necessary to find a good configuration for InfoGAN.
+
+\section{Noisy Input Trick}
+
+It was intially surprising that InfoGAN worked with MNIST but not BasicProp. We realized an NaN occured in training because the discriminator became too confident simultaneously as the ratio of the probability of generated to real images went 0. Adding noise to the inputs indeed ``stabilized'' training. A successful run in our experiments is distinct in that there is a cliff in the loss when the generator finally succeeds to generate something that looks reasonable. Other runs might have near constant generator loss or a constantly increasing one.
+
+The question is why did this noise help when it wasn't required for MNIST? The BasicProp data initially has pixels of only 0 and 255, making the probability of these images far too dense and unlikely to overlap with generated images \cite{instancenoise2016}. Fixing the generator's outputs to 0 or 255 might have been an alternative solution, but using noise is nice in that it is a trick that could be useful in other setups and is worth exploring.
+
+``Instance noise'' has been talked about in the GAN literature lately as a method to increase the chance of overlapping support in the real and generated distributions \cite{instancenoise2016,howtotrainagan2016,arjovskygan}. Older works tend to use input noise as a regularizer for supervised learning \cite{von1988factors, holmstrom1992using}. Both of these stories have the same goal of making the underlying model generalize better in its predictions and assist in avoiding local minima.
+
+It's been mentioned that L2 weight decay (a specific instance of Tikhonov regularization \cite{bishop1995training}) is an equivalent alternative for input noise, but \cite{VincentBengioStackedAE} show this was not the case for the denoising autencoder. This could have been interesting to show when training a GAN to generate BasicProp, but we decided that the information from \cite{VincentBengioStackedAE} was sufficient.
+
+
+
+\section{Conclusion}
+Our experiments confirm that tying latent codes with output from the generator through mutual information can yield interpretable representations on different datasets. The choice of latent codes depends on the input data. In particular, the codes should correspond to intrinsic properties of the data that they are intended to capture. For example, in the case of MNIST, it is reasonable to introduce a discrete categorical variable for the 10 classes of digits. We also confirm empirically that adding noise to the real data stabilizes training. 
+% Variational inference has proven to be a useful tool for building interpretable representations in latent variable models. Kingma and Welling \cite{kingma_ae} used a variational autoencoder to visualize the manifold of faces or hand written digits, and Bowman et al. \cite{bowman_sent} used a similar approach for sentences. Recent architectures rely on an inference network to encode the initial document representation into a fixed size real valued vector. This latent vector can be fed into a generator or discriminator. More specifically, we've seen Miao et al. \cite{mia_nvi} generate topics of documents, or choose one of a collection of answers given a question. In this project, we intend to build upon the variational inference framework proposed in Miao et al. \cite{mia_nvi}, using different architectures for the inference network and better estimators of the variational lower bound. Our new model will be trained for the task of document modeling to generate topics, similar to Miao et al. \cite{mia_nvi}, and also to classify the sentiment of sentences such as Tang et al. \cite{tang_gru}. To our knowledge, using the neural variational inference network for sentiment classification has not been previously attempted.
+
+% \section{Model}
+
+% Our primary contribution will be to incorporate the idea of interpretable latent variables from InfoGAN \cite{chen2016infogan} into the Neural Variation Inference framework \cite{mia_nvi}.
+% % TODO(kve216): Explain how InfoGAN is regularized GAN. NVI is similar to non-regularized GAN except is not adversarial. We propose the new loss function for InfoNVI.
+% The Variational Lower Bound in \cite{mia_nvi}:
+% \begin{equation}\label{nvi_loss}
+% \mathcal{L} = \e_{h\sim q_{\phi}(h|X)}\Big[\sum_{i=1}^Np_{\theta}(x_i|h)\Big] - D_{KL}[q_{\theta}(h|X)||p(h)],
+% \end{equation}
+% where $h$ is a latent variable, $x_i$ is the $i$-th word in the document containing $N$ words, $\theta$ is a learned parameter for the inference network $q_{\theta}(h|X)$ and the decoder $p_{\theta}(x|h)$, and $p(h)$ is the prior distribution on $h$. 
+
+
+% Additionally, we are planning to try out a variation of InfoGAN in which all of the latent variables in the model are interpretable. In other words, we are curious to investigate how discarding the noise variable $z$ would influence representation learning. 
+% In the formula above we are aiming to maximize the mutual information between the latent variable $c$ and the output from the decoder. 
+% Further, in addition to MNIST, we are planning to run InfoGAN on variations of the MNIST dataset as discussed in the following section.
+
+% Other stuff
+% \begin{itemize}
+%     \item There are lots of GANs.
+%     \item DCGAN
+%     \item VAE has been compared to GAN, although its important to understand that they are different. VAE provides a continuous output and uses cross entropy reconstruction loss. GAN provides discrete output (whether an image is real or fake).
+%     \item InfoGAN has a few distinct setups
+    
+%     \begin{itemize}
+%         \item Noise, no latent codes, no mutual information (same as Vanilla GAN).
+%         \item Noise, latent codes, mutual information (InfoGAN).
+%         \item No noise, latent codes, mutual information. 
+%         \item An interesting configuration would be latent codes specifically to match the data augmentation techniques suggested in Lecun et al.
+%         \item Feed a real image to the generator. It becomes almost like an Autoencoder, but will learn the identity function unless you place some restriction.
+%         \item Similarly, feed a noise vector that matches the dimension of the data.
+%         \item Question for us: Which experiments were run in the InfoGAN paper? 
+%         % \item Extra categorical codes.
+%     \end{itemize}
+% \end{itemize}
+
+
+
+
+
+
+
+
+
+%\section{Experiments}
+
+% \subsection{Modifying the Mutual Information Term}
+% We replace the second argument of the original Mutual Information term, the generator output, namely $G(z,c)$, with the real data input $x$. 
+
+% \begin{figure}[ht]
+% \centering
+% \begin{subfigure}{.33\textwidth}
+%   \centering
+%   \includegraphics[width=.9\linewidth]{img/loss_x/loss_x_cat}
+%   \caption{Categorical Code}
+%   \label{fig:lossx1}
+% \end{subfigure}%
+% \begin{subfigure}{.33\textwidth}
+%   \centering
+%   \includegraphics[width=.9\linewidth]{img/loss_x/loss_x_unif1}
+%   \caption{Uniform Code 1}
+%   \label{fig:lossx2}
+% \end{subfigure}
+% \begin{subfigure}{.33\textwidth}
+%   \centering
+%   \includegraphics[width=.9\linewidth]{img/loss_x/loss_x_unif2}
+%   \caption{Uniform Code 2}
+%   \label{fig:lossx3}
+% \end{subfigure}
+% \caption{Replacing Mutual Information term MI$(c;G(z,c))$ with MI$c;x$.}
+% \label{fig:test}
+% \end{figure}
+
+ 
+% \begin{align*}
+% \min_G\max_D V_{IG} (D,G) = V(D,G) - \lambda\cdot\I (c;x)
+% \end{align*}
+
+% \subsection{Research Questions}
+
+% \begin{itemize}
+%     \item At what point does a variable become interpretable? Can we show this in a plot? At what point does a generator show reasonable images rather than random noise?
+    
+%     \item What happens if we add hyperparameters to the InfoGAN equation. For instance: 
+    
+%     \begin{align*}
+%     \min_G\max_D V_{IG} (D,G) = \lambda_{V} \cdot V(D,G) - \lambda_{MI}\cdot\I (c;x)
+%     \end{align*}
+    
+%     Or even:
+    
+%     \begin{align*}
+%     \min_G\max_D V_{IG} (D,G) = \lambda_{data} \cdot f_{data}(D) +
+%     \lambda_{noise} \cdot f_{noise}(G, D) -
+%     \lambda_{MI}\cdot\I (c;x)
+%     \end{align*}
+    
+%     \begin{align*}
+%     f_{data}(D) & = \e_{x\sim P_{\rm{data}}}[\log(D(x)) ] \\
+%     f_{noise}(G, D) & = \e_{z\sim \rm{noise}} [\log (1- D(G(z)))] 
+% \end{align*}
+    
+%     \item Is it possible to train the generator to produce images outside the range of the input data? For instance, considered the following input and generated image:
+    
+%     \begin{center}
+%     \includegraphics[width=2.8in]{img/research/unseen.png}
+%     \end{center}
+    
+%     In the current setup, it's more or less impossible to generate images like these because it would be obviously fake to the discriminator. Perhaps by limiting the discriminator to only have a ``sneak peek'', these images could be learned by the generator, but does this address the true problem? We would say the true problem is that we want to generate random images that retain certain qualities (or latent codes), but that will ignore other limitations in the representation.
+    
+%     If the discriminator only examined or classified the latent codes of the model, then this might be sufficient.
+% \end{itemize}
+
+\printbibliography
+
+\newpage
+
+\appendix
+
+\section*{Appendix}
+
+\section{BasicProp++}
+
+We initially proposed more variants of BasicProp, displayed in Figure $\ref{more-syn}$. However, we found the line and rectangles to be sufficient.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=2.8in]{synthetic}
+    \caption{Hypothetical images for the synthetic dataset. This set contains spatial translation, ratios of diameters, colorings, and alternating shapes, all of which could potentially be captured by a combination of categorical and continuous variables.}
+    \label{more-syn}
+\end{figure}
+
+\section{BasicProp: Rectangles}
+
+We were unsuccessful disentangling latent codes with rectangles. The last recorded images are show in figure $\ref{rect}$.
+
+\begin{figure}[ht]
+\centering
+\begin{multicols}{2}
+
+% Images
+
+% Discrete
+
+\includegraphics[width=0.8in]{img/basicprop_rects/latent_cat.png}
+
+% Continuous
+
+\includegraphics[width=0.8in]{img/basicprop_rects/latent_cont_1.png}
+
+% Graphs
+
+\includegraphics[width=1.3in]{img/basicprop_rects/disc_loss.png}
+\includegraphics[width=1.3in]{img/basicprop_rects/gen_loss.png}
+
+\includegraphics[width=1.3in]{img/basicprop_rects/mi_cont.png}
+\includegraphics[width=1.3in]{img/basicprop_rects/mi_disc.png}
+
+\end{multicols}
+\caption{The orange line denotes using only foreground noise, purple line is with a decreased discriminator learning rate with foreground noise, and the blue line uses background and foreground noise with the normal learning rate. The triangle indicates that an NaN was detected. It's evident the NaN is directly linked to the discriminator loss reaching 0.}
+    \label{rect}
+\end{figure}
+
+\section{Additional Experiments}
+
+Below are some experiments which might provide additional insight into what to our study of Mutual Information and interpretable representations. 
+
+\begin{itemize}
+    \item Observing that InfoGAN is more or less a GAN with a denoising autoencoder built-in, we wonder if we can reformulate the objective to simply minimize the encoder loss rather than maximize the the mutual information. This is simple enough to setup for categorical codes.
+    \item  What happens if more degrees of freedom are provided in the latent codes? In particular, what would happen if the categorical latent code used for MNIST has dimension higher than 10? One hypothesis is that it would be able to discern subcategories in each digit class.
+\end{itemize}
+
+\section{Semi-Supervised Learning with Categorical Codes}
+
+We describe here in detail a method for using InfoGAN as a data augmentation in a general classification task:
+
+\begin{enumerate}
+    \item Configure InfoGAN to have a categorical code that matches the labels of your data.
+    \item Learn a generative model of your data with InfoGAN using this configuration.
+    \item Generate Y images of each of the Z classes. Perturb the other latent codes and noise vector during image generation, so that there is some variation in the images.
+    \item Either using a pretrained classifier or with manual input, identify each of the Z sets of images.
+    \item Add the new images to the class's set and train a new classifier using the images as if they were real data.
+    \item This is incredibly similar to the technique of transforming images prior to training such as was done by Lecun et al.
+\end{enumerate}
+
+\end{document} 

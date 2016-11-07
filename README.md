@@ -33,3 +33,7 @@ You can launch TensorBoard to view the generated images:
 ```bash
 tensorboard --logdir logs/mnist
 ```
+
+## License
+
+MIT
