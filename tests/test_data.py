@@ -27,8 +27,12 @@ class DataTestCase(unittest.TestCase):
         dataset = datasets.DummyDataset()
         check_dataset(dataset)
 
-    def test_basicprop(self):
-        dataset = datasets.DummyDataset()
+    def test_basicprop_line(self):
+        dataset = datasets.BasicPropLineDataset()
+        check_dataset(dataset)
+
+    def test_basicprop_rects(self):
+        dataset = datasets.BasicPropRectsDataset()
         check_dataset(dataset)
 
 

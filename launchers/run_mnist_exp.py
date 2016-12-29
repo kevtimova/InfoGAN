@@ -54,8 +54,10 @@ if __name__ == "__main__":
         dataset = datasets.MnistDataset()
     elif FLAGS.dataset == 'DUMMY':
         dataset = datasets.DummyDataset()
-    elif FLAGS.dataset == 'BASICPROP':
-        dataset = datasets.BasicPropDataset()
+    elif FLAGS.dataset == 'LINE':
+        dataset = datasets.BasicPropLineDataset()
+    elif FLAGS.dataset == 'RECTS':
+        dataset = datasets.BasicPropRectsDataset()
     elif FLAGS.dataset == 'BPAngle':
         dataset = datasets.BasicPropAngleDataset()
     elif FLAGS.dataset == 'BPAngleNoise':

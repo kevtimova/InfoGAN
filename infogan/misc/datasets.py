@@ -212,7 +212,53 @@ class DummyDataset(object):
 
 ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### #####
 
-class BasicPropBatchIterator(object):
+class BasicPropRectsBatchIterator(object):
+    def get_image(self, y1, y2, width=10):
+        # Configuration
+        x1offset = 3
+        x2offset = 15
+        heights = np.array([3, 5, 7, 9, 11, 13, 15, 17, 19, 21])
+        
+        # Create Background
+        x = np.zeros((28, 28))
+        
+        # Create Foreground
+        line1 = np.ones((heights[y1], width))
+        x[3:3+heights[y1],x1offset:x1offset+width] = line1
+        
+        line2 = np.ones((heights[y2], width))
+        x[3:3+heights[y2],x2offset:x2offset+width] = line2
+        
+        return x    
+
+    def next_batch(self, batch_size):
+        """ First randomly select labels, then generate images
+            based on labels and concatenate to create batch.
+        """
+        y1s = np.random.randint(0, 10, batch_size).astype(np.uint8)
+        y2s = np.random.randint(0, 10, batch_size).astype(np.uint8)
+        data = []
+        labels = []
+        for y1, y2 in zip(y1s, y2s):
+            x = self.get_image(y1, y2)
+            data.append(x.reshape(-1))
+            labels.append(y1 * 10 + y2)
+        data = np.concatenate([np.expand_dims(x, axis=0) for x in data], axis=0).astype(np.float32)
+        labels = np.array(labels).astype(np.uint8)
+        return (data, labels)
+
+class BasicPropRectsDataset(object):
+    def __init__(self):
+        self.train = BasicPropRectsBatchIterator()
+        self.image_dim = 28 * 28
+        self.image_shape = (28, 28, 1)
+
+    def inverse_transform(self, data):
+        return data
+
+##### ##### ##### ##### ##### ##### ##### ##### ##### ##### #####
+
+class BasicPropLineBatchIterator(object):
     def get_image(self, y, width=4):
         x = np.zeros((28, 28))
         offset = y * 2
@@ -232,9 +278,9 @@ class BasicPropBatchIterator(object):
         data = np.concatenate([np.expand_dims(x, axis=0) for x in data], axis=0).astype(np.float32)
         return (data, labels)
 
-class BasicPropDataset(object):
+class BasicPropLineDataset(object):
     def __init__(self):
-        self.train = BasicPropBatchIterator()
+        self.train = BasicPropLineBatchIterator()
         self.image_dim = 28 * 28
         self.image_shape = (28, 28, 1)
 
