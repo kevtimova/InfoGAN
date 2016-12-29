@@ -1,7 +1,7 @@
 import unittest
 
 import numpy as np
-from infogan.misc.datasets import MnistDataset, DummyDataset
+import infogan.misc.datasets as datasets
 
 def check_dataset(dataset):
     dummy = 1.0
@@ -20,11 +20,15 @@ def check_dataset(dataset):
 class DataTestCase(unittest.TestCase):
 
     def test_mnist(self):
-        dataset = MnistDataset()
+        dataset = datasets.MnistDataset()
         check_dataset(dataset)
 
     def test_dummy(self):
-        dataset = DummyDataset()
+        dataset = datasets.DummyDataset()
+        check_dataset(dataset)
+
+    def test_basicprop(self):
+        dataset = datasets.DummyDataset()
         check_dataset(dataset)
 
 
