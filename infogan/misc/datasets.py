@@ -213,7 +213,10 @@ class DummyDataset(object):
 ##### ##### ##### ##### ##### ##### ##### ##### ##### ##### #####
 
 class BasicPropRectsBatchIterator(object):
-    def get_image(self, y1, y2, width=10):
+    def get_image(self, y, width=10):
+        y1 = y / 10
+        y2 = y % 10
+
         # Configuration
         x1offset = 3
         x2offset = 15
@@ -235,16 +238,12 @@ class BasicPropRectsBatchIterator(object):
         """ First randomly select labels, then generate images
             based on labels and concatenate to create batch.
         """
-        y1s = np.random.randint(0, 10, batch_size).astype(np.uint8)
-        y2s = np.random.randint(0, 10, batch_size).astype(np.uint8)
+        labels = np.random.randint(0, 100, batch_size).astype(np.uint8)
         data = []
-        labels = []
-        for y1, y2 in zip(y1s, y2s):
-            x = self.get_image(y1, y2)
+        for y in labels:
+            x = self.get_image(y)
             data.append(x.reshape(-1))
-            labels.append(y1 * 10 + y2)
         data = np.concatenate([np.expand_dims(x, axis=0) for x in data], axis=0).astype(np.float32)
-        labels = np.array(labels).astype(np.uint8)
         return (data, labels)
 
 class BasicPropRectsDataset(object):
@@ -341,5 +340,18 @@ def load_data():
 
 if __name__ == '__main__':
 
-    pass
-    
+    import scipy.misc
+
+    os.makedirs('img')
+
+    bpl = BasicPropLineDataset()
+    bpr = BasicPropRectsDataset()
+
+    def preview(name, dataset, labels):
+        images = [dataset.train.get_image(y) for y in labels]
+        for x, y in zip(images, labels):
+            scipy.misc.imsave('img/{}_{:03}.png'.format(name, y), x)
+
+    # Generate all possible images.
+    preview("line", bpl, range(10))
+    preview("rects", bpr, range(100))
