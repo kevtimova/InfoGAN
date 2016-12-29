@@ -22,7 +22,11 @@ curl http://whiskey-ginger-analytics-public.s3.amazonaws.com/datasets/BASICPROP-
 
 ## Dependencies
 
-This project currently requires the dev version of TensorFlow available on Github: https://github.com/tensorflow/tensorflow. As of the release, the latest commit is [79174a](https://github.com/tensorflow/tensorflow/commit/79174afa30046ecdc437b531812f2cb41a32695e).
+This project currently requires an antiquated version of tensorflow. For Mac:
+
+```
+pip install -U https://storage.googleapis.com/tensorflow/mac/cpu/tensorflow-0.10.0-py2-none-any.whl
+```
 
 In addition, please `pip install` the following packages:
 - `prettytensor`

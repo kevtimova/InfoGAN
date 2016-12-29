@@ -224,6 +224,26 @@ class BasicPropAngleNoiseSingleDataset(object):
         return data
 
 
+class DummyBatchIterator(object):
+    def __init__(self):
+        super(DummyBatchIterator, self).__init__()
+
+    def next_batch(self, batch_size):
+        data = np.zeros((batch_size, 784)).astype(np.float32)
+        labels = np.zeros((batch_size,)).astype(np.uint8)
+        return (data, labels)
+
+class DummyDataset(object):
+    def __init__(self):
+        super(DummyDataset, self).__init__()
+
+        self.image_dim = 28 * 28
+        self.image_shape = (28, 28, 1)
+        self.train = DummyBatchIterator()
+
+    def inverse_transform(self, data):
+        return data
+
 class MnistDataset(object):
     def __init__(self):
         data_directory = "MNIST"

@@ -6,7 +6,7 @@ import tensorflow as tf
 import gflags
 import os
 import sys
-from infogan.misc.datasets import MnistDataset, BasicPropDataset, BasicPropAngleDataset, BasicPropAngleNoiseDataset, BasicPropAngleNoiseBGDataset, BasicPropAngleNoiseSingleDataset
+import infogan.misc.datasets as datasets
 from infogan.models.regularized_gan import RegularizedGAN
 from infogan.algos.infogan_trainer import InfoGANTrainer
 from infogan.misc.utils import mkdir_p
@@ -51,17 +51,21 @@ if __name__ == "__main__":
     mkdir_p(checkpoint_dir)
 
     if FLAGS.dataset == 'MNIST':
-        dataset = MnistDataset()
+        dataset = datasets.MnistDataset()
+    elif FLAGS.dataset == 'DUMMY':
+        dataset = datasets.DummyDataset()
     elif FLAGS.dataset == 'BASICPROP':
-        dataset = BasicPropDataset()
+        dataset = datasets.BasicPropDataset()
     elif FLAGS.dataset == 'BPAngle':
-        dataset = BasicPropAngleDataset()
+        dataset = datasets.BasicPropAngleDataset()
     elif FLAGS.dataset == 'BPAngleNoise':
-        dataset = BasicPropAngleNoiseDataset()
+        dataset = datasets.BasicPropAngleNoiseDataset()
     elif FLAGS.dataset == 'BPAngleNoiseBG':
-        dataset = BasicPropAngleNoiseBGDataset()
+        dataset = datasets.BasicPropAngleNoiseBGDataset()
     elif FLAGS.dataset == 'BPAngleNoiseSingle':
-        dataset = BasicPropAngleNoiseSingleDataset()
+        dataset = datasets.BasicPropAngleNoiseSingleDataset()
+    elif FLAGS.dataset == 'BPAngleNoiseSingle':
+        dataset = datasets.BasicPropAngleNoiseSingleDataset()
     else:
         raise Exception("Please specify a valid dataset.")
 
