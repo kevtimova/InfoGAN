@@ -3,6 +3,8 @@ from infogan.misc.utils import mkdir_p
 from tensorflow.examples.tutorials import mnist
 import os
 import random
+from basicprop.datasets import Line, Rects
+from basicprop.noise import set_uniform_noise
 
 
 class Dataset(object):
@@ -210,35 +212,18 @@ class DummyDataset(object):
     def inverse_transform(self, data):
         return data
 
-##### ##### ##### ##### ##### ##### ##### ##### ##### ##### #####
+class BatchIterator(object):
+    def __init__(self):
+        raise Exception("Not implemented.")
 
-class BasicPropRectsBatchIterator(object):
-    def get_image(self, y, width=10):
-        y1 = y / 10
-        y2 = y % 10
-
-        # Configuration
-        x1offset = 3
-        x2offset = 15
-        heights = np.array([3, 5, 7, 9, 11, 13, 15, 17, 19, 21])
-        
-        # Create Background
-        x = np.zeros((28, 28))
-        
-        # Create Foreground
-        line1 = np.ones((heights[y1], width))
-        x[3:3+heights[y1],x1offset:x1offset+width] = line1
-        
-        line2 = np.ones((heights[y2], width))
-        x[3:3+heights[y2],x2offset:x2offset+width] = line2
-        
-        return x    
+    def get_image(self, y):
+        return self.dataset.get_image(y)
 
     def next_batch(self, batch_size):
         """ First randomly select labels, then generate images
             based on labels and concatenate to create batch.
         """
-        labels = np.random.randint(0, 100, batch_size).astype(np.uint8)
+        labels = np.random.randint(0, self.num_labels, batch_size).astype(np.uint8)
         data = []
         for y in labels:
             x = self.get_image(y)
@@ -246,40 +231,28 @@ class BasicPropRectsBatchIterator(object):
         data = np.concatenate([np.expand_dims(x, axis=0) for x in data], axis=0).astype(np.float32)
         return (data, labels)
 
-class BasicPropRectsDataset(object):
+class BasicPropLineBatchIterator(BatchIterator):
     def __init__(self):
-        self.train = BasicPropRectsBatchIterator()
+        self.dataset = Line()
+        self.num_labels = 10
+
+class BasicPropRectsBatchIterator(BatchIterator):
+    def __init__(self):
+        self.dataset = Rects()
+        self.num_labels = 100
+
+class BasicPropLineDataset(object):
+    def __init__(self):
+        self.train = BasicPropLineBatchIterator()
         self.image_dim = 28 * 28
         self.image_shape = (28, 28, 1)
 
     def inverse_transform(self, data):
         return data
 
-##### ##### ##### ##### ##### ##### ##### ##### ##### ##### #####
-
-class BasicPropLineBatchIterator(object):
-    def get_image(self, y, width=4):
-        x = np.zeros((28, 28))
-        offset = y * 2
-        line = np.ones((28,width))
-        x[:,(offset+3):(offset+3+width)] = line
-        return x    
-
-    def next_batch(self, batch_size):
-        """ First randomly select labels, then generate images
-            based on labels and concatenate to create batch.
-        """
-        labels = np.random.randint(0, 10, batch_size).astype(np.uint8)
-        data = []
-        for y in labels:
-            x = self.get_image(y)
-            data.append(x.reshape(-1))
-        data = np.concatenate([np.expand_dims(x, axis=0) for x in data], axis=0).astype(np.float32)
-        return (data, labels)
-
-class BasicPropLineDataset(object):
+class BasicPropRectsDataset(object):
     def __init__(self):
-        self.train = BasicPropLineBatchIterator()
+        self.train = BasicPropRectsBatchIterator()
         self.image_dim = 28 * 28
         self.image_shape = (28, 28, 1)
 
