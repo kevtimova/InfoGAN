@@ -54,143 +54,6 @@ class Dataset(object):
         else:
             return self._images[start:end], self._labels[start:end]
 
-
-class BasicPropAngleDataset(object):
-    def __init__(self):
-        data_directory = "BASICPROP-angle"
-        if not os.path.exists(data_directory):
-            os.makedirs(data_directory)
-        dataset = mnist.input_data.read_data_sets(data_directory)
-        self.train = dataset.train
-        # make sure that each type of digits have exactly 10 samples
-        sup_images = []
-        sup_labels = []
-        rnd_state = np.random.get_state()
-        np.random.seed(0)
-        for cat in range(10):
-            ids = np.where(self.train.labels == cat)[0]
-            np.random.shuffle(ids)
-            sup_images.extend(self.train.images[ids[:10]])
-            sup_labels.extend(self.train.labels[ids[:10]])
-        np.random.set_state(rnd_state)
-        self.supervised_train = Dataset(
-            np.asarray(sup_images),
-            np.asarray(sup_labels),
-        )
-        self.test = dataset.test
-        self.validation = dataset.validation
-        self.image_dim = 28 * 28
-        self.image_shape = (28, 28, 1)
-
-    def transform(self, data):
-        return data
-
-    def inverse_transform(self, data):
-        return data
-
-
-class BasicPropAngleNoiseDataset(object):
-    def __init__(self):
-        data_directory = "BASICPROP-angle-noise"
-        if not os.path.exists(data_directory):
-            os.makedirs(data_directory)
-        dataset = mnist.input_data.read_data_sets(data_directory)
-        self.train = dataset.train
-        # make sure that each type of digits have exactly 10 samples
-        sup_images = []
-        sup_labels = []
-        rnd_state = np.random.get_state()
-        np.random.seed(0)
-        for cat in range(10):
-            ids = np.where(self.train.labels == cat)[0]
-            np.random.shuffle(ids)
-            sup_images.extend(self.train.images[ids[:10]])
-            sup_labels.extend(self.train.labels[ids[:10]])
-        np.random.set_state(rnd_state)
-        self.supervised_train = Dataset(
-            np.asarray(sup_images),
-            np.asarray(sup_labels),
-        )
-        self.test = dataset.test
-        self.validation = dataset.validation
-        self.image_dim = 28 * 28
-        self.image_shape = (28, 28, 1)
-
-    def transform(self, data):
-        return data
-
-    def inverse_transform(self, data):
-        return data
-
-
-class BasicPropAngleNoiseBGDataset(object):
-    def __init__(self):
-        data_directory = "BASICPROP-angle-noise-bg"
-        if not os.path.exists(data_directory):
-            os.makedirs(data_directory)
-        dataset = mnist.input_data.read_data_sets(data_directory)
-        self.train = dataset.train
-        # make sure that each type of digits have exactly 10 samples
-        sup_images = []
-        sup_labels = []
-        rnd_state = np.random.get_state()
-        np.random.seed(0)
-        for cat in range(10):
-            ids = np.where(self.train.labels == cat)[0]
-            np.random.shuffle(ids)
-            sup_images.extend(self.train.images[ids[:10]])
-            sup_labels.extend(self.train.labels[ids[:10]])
-        np.random.set_state(rnd_state)
-        self.supervised_train = Dataset(
-            np.asarray(sup_images),
-            np.asarray(sup_labels),
-        )
-        self.test = dataset.test
-        self.validation = dataset.validation
-        self.image_dim = 28 * 28
-        self.image_shape = (28, 28, 1)
-
-    def transform(self, data):
-        return data
-
-    def inverse_transform(self, data):
-        return data
-
-
-class BasicPropAngleNoiseSingleDataset(object):
-    def __init__(self):
-        data_directory = "BASICPROP-angle-single-noise-bg"
-        if not os.path.exists(data_directory):
-            os.makedirs(data_directory)
-        dataset = mnist.input_data.read_data_sets(data_directory)
-        self.train = dataset.train
-        # make sure that each type of digits have exactly 10 samples
-        sup_images = []
-        sup_labels = []
-        rnd_state = np.random.get_state()
-        np.random.seed(0)
-        for cat in range(10):
-            ids = np.where(self.train.labels == cat)[0]
-            np.random.shuffle(ids)
-            sup_images.extend(self.train.images[ids[:10]])
-            sup_labels.extend(self.train.labels[ids[:10]])
-        np.random.set_state(rnd_state)
-        self.supervised_train = Dataset(
-            np.asarray(sup_images),
-            np.asarray(sup_labels),
-        )
-        self.test = dataset.test
-        self.validation = dataset.validation
-        self.image_dim = 28 * 28
-        self.image_shape = (28, 28, 1)
-
-    def transform(self, data):
-        return data
-
-    def inverse_transform(self, data):
-        return data
-
-
 class DummyBatchIterator(object):
     def __init__(self):
         super(DummyBatchIterator, self).__init__()
@@ -297,7 +160,6 @@ class MnistDataset(object):
 
 def try_data():
     mnist = MnistDataset()
-    basicprop = BasicPropDataset()
 
 def load_data():
     dev_file = 'MNIST/t10k-images-idx3-ubyte'
@@ -317,13 +179,16 @@ if __name__ == '__main__':
 
     import scipy.misc
 
-    os.makedirs('img')
+    try:
+        os.makedirs('img')
+    except:
+        pass
 
     bpl = BasicPropLineDataset()
     bpr = BasicPropRectsDataset()
 
     def preview(name, dataset, labels):
-        images = [dataset.train.get_image(y) for y in labels]
+        images = [dataset.train.dataset.get_image(y) for y in labels]
         for x, y in zip(images, labels):
             scipy.misc.imsave('img/{}_{:03}.png'.format(name, y), x)
 

@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
     # Experiment naming.
     gflags.DEFINE_string("experiment_name", "", "")
-    gflags.DEFINE_string("dataset", "MNIST", "[MNIST] MNIST|BASICPROP|BPAngle|BPAngleNoise")
+    gflags.DEFINE_string("dataset", "MNIST", "[MNIST] MNIST|LINE|RECTS")
     gflags.DEFINE_string("noise", None, "[None] FG|BG|BOTH")
 
     # Optimization settings.
@@ -55,22 +55,10 @@ if __name__ == "__main__":
 
     if FLAGS.dataset == 'MNIST':
         dataset = datasets.MnistDataset()
-    elif FLAGS.dataset == 'DUMMY':
-        dataset = datasets.DummyDataset()
     elif FLAGS.dataset == 'LINE':
         dataset = datasets.BasicPropLineDataset()
     elif FLAGS.dataset == 'RECTS':
         dataset = datasets.BasicPropRectsDataset()
-    elif FLAGS.dataset == 'BPAngle':
-        dataset = datasets.BasicPropAngleDataset()
-    elif FLAGS.dataset == 'BPAngleNoise':
-        dataset = datasets.BasicPropAngleNoiseDataset()
-    elif FLAGS.dataset == 'BPAngleNoiseBG':
-        dataset = datasets.BasicPropAngleNoiseBGDataset()
-    elif FLAGS.dataset == 'BPAngleNoiseSingle':
-        dataset = datasets.BasicPropAngleNoiseSingleDataset()
-    elif FLAGS.dataset == 'BPAngleNoiseSingle':
-        dataset = datasets.BasicPropAngleNoiseSingleDataset()
     else:
         raise Exception("Please specify a valid dataset.")
 
