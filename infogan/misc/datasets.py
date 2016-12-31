@@ -4,7 +4,6 @@ from tensorflow.examples.tutorials import mnist
 import os
 import random
 from basicprop.datasets import Line, Rects
-from basicprop.noise import set_uniform_noise
 
 
 class Dataset(object):

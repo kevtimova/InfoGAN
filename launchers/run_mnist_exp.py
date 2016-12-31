@@ -7,6 +7,8 @@ import gflags
 import os
 import sys
 import infogan.misc.datasets as datasets
+from basicprop.noise import set_uniform_noise
+from basicprop.datasets import FG_PIXEL, BG_PIXEL
 from infogan.models.regularized_gan import RegularizedGAN
 from infogan.algos.infogan_trainer import InfoGANTrainer
 from infogan.misc.utils import mkdir_p
@@ -26,6 +28,7 @@ if __name__ == "__main__":
     # Experiment naming.
     gflags.DEFINE_string("experiment_name", "", "")
     gflags.DEFINE_string("dataset", "MNIST", "[MNIST] MNIST|BASICPROP|BPAngle|BPAngleNoise")
+    gflags.DEFINE_string("noise", None, "[None] FG|BG|BOTH")
 
     # Optimization settings.
     gflags.DEFINE_integer("batch_size", 128, "SGD minibatch size.")
@@ -71,6 +74,28 @@ if __name__ == "__main__":
     else:
         raise Exception("Please specify a valid dataset.")
 
+    def fg_noise(x):
+        x = set_uniform_noise(x, 150, 240, FG_PIXEL)
+        return x
+
+    def bg_noise(x):
+        x = set_uniform_noise(x, 0, 60, BG_PIXEL)
+        return x
+
+    def both_noise(x):
+        x = fg_noise(x)
+        x = bg_noise(x)
+        return x
+
+    if FLAGS.noise == 'FG':
+        noise_fn = fg_noise
+    elif FLAGS.noise == 'BG':
+        noise_fn = bg_noise
+    elif FLAGS.noise == 'BOTH':
+        noise_fn = both_noise
+    else:
+        noise_fn = lambda x: x
+
     latent_spec = [
         (Uniform(62), False),
         (Categorical(10), True),
@@ -89,6 +114,7 @@ if __name__ == "__main__":
     algo = InfoGANTrainer(
         model=model,
         dataset=dataset,
+        noise_fn=noise_fn,
         batch_size=FLAGS.batch_size,
         exp_name=FLAGS.experiment_name,
         log_dir=log_dir,

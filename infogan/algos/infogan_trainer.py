@@ -15,6 +15,7 @@ class InfoGANTrainer(object):
                  model,
                  batch_size,
                  dataset=None,
+                 noise_fn=lambda x: x,
                  exp_name="experiment",
                  log_dir="logs",
                  checkpoint_dir="ckt",
@@ -29,6 +30,7 @@ class InfoGANTrainer(object):
         """
         self.model = model
         self.dataset = dataset
+        self.noise_fn = noise_fn
         self.batch_size = batch_size
         self.max_epoch = max_epoch
         self.exp_name = exp_name
@@ -238,6 +240,7 @@ class InfoGANTrainer(object):
                 for i in range(self.updates_per_epoch):
                     pbar.update(i)
                     x, _ = self.dataset.train.next_batch(self.batch_size)
+                    x = self.noise_fn(x)
                     feed_dict = {self.input_tensor: x}
                     log_vals = sess.run([self.discriminator_trainer] + log_vars, feed_dict)[1:]
                     sess.run(self.generator_trainer, feed_dict)
