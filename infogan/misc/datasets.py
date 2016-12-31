@@ -216,30 +216,33 @@ class BatchIterator(object):
     def __init__(self):
         raise Exception("Not implemented.")
 
-    def get_image(self, y):
-        return self.dataset.get_image(y)
+    def batch_iterator(self, batch_size):
+        while True:
+            for (data, labels) in self.dataset.get_epoch(self.epoch_size, batch_size, shuffle=True, seed=self.seed):
+                yield (data, labels)
 
     def next_batch(self, batch_size):
-        """ First randomly select labels, then generate images
-            based on labels and concatenate to create batch.
+        """ Upon first call, create batch_iterator generator, and set batch_size.
         """
-        labels = np.random.randint(0, self.num_labels, batch_size).astype(np.uint8)
-        data = []
-        for y in labels:
-            x = self.get_image(y)
-            data.append(x.reshape(-1))
-        data = np.concatenate([np.expand_dims(x, axis=0) for x in data], axis=0).astype(np.float32)
-        return (data, labels)
+        if not hasattr(self, '_batch_iterator'):
+            self._batch_iterator = self.batch_iterator(batch_size)
+            self.batch_size = batch_size
+        assert self.batch_size == batch_size
+        return next(self._batch_iterator)
 
 class BasicPropLineBatchIterator(BatchIterator):
     def __init__(self):
         self.dataset = Line()
         self.num_labels = 10
+        self.epoch_size = 10000
+        self.seed = 11
 
 class BasicPropRectsBatchIterator(BatchIterator):
     def __init__(self):
         self.dataset = Rects()
         self.num_labels = 100
+        self.epoch_size = 10000
+        self.seed = 11
 
 class BasicPropLineDataset(object):
     def __init__(self):

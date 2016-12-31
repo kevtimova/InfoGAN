@@ -1,4 +1,4 @@
-basicprop==0.5.1
+basicprop==0.5.2
 ipdb
 prettytensor
 progressbar
