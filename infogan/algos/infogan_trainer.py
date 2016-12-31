@@ -241,6 +241,7 @@ class InfoGANTrainer(object):
                     pbar.update(i)
                     x, _ = self.dataset.train.next_batch(self.batch_size)
                     x = self.noise_fn(x)
+                    import ipdb; ipdb.set_trace()
                     feed_dict = {self.input_tensor: x}
                     log_vals = sess.run([self.discriminator_trainer] + log_vars, feed_dict)[1:]
                     sess.run(self.generator_trainer, feed_dict)

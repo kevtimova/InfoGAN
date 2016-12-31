@@ -25,10 +25,13 @@ if __name__ == "__main__":
     now = datetime.datetime.now(dateutil.tz.tzlocal())
     timestamp = now.strftime('%Y_%m_%d_%H_%M_%S')
 
+    # Debug settings.
+    gflags.DEFINE_boolean("preview", False, "Set to True to print images.")
+
     # Experiment naming.
     gflags.DEFINE_string("experiment_name", "", "")
     gflags.DEFINE_string("dataset", "MNIST", "[MNIST] MNIST|LINE|RECTS")
-    gflags.DEFINE_string("noise", None, "[None] FG|BG|BOTH")
+    gflags.DEFINE_string("noise", "NONE", "[NONE] FG|BG|BOTH")
 
     # Optimization settings.
     gflags.DEFINE_integer("batch_size", 128, "SGD minibatch size.")
@@ -81,8 +84,18 @@ if __name__ == "__main__":
         noise_fn = bg_noise
     elif FLAGS.noise == 'BOTH':
         noise_fn = both_noise
-    else:
+    elif FLAGS.noise == 'NONE':
         noise_fn = lambda x: x
+    else:
+        raise Exception("Not implemented.")
+
+    if FLAGS.preview:
+        import scipy.misc
+        x = dataset.train.next_batch(FLAGS.batch_size)[0]
+        x = noise_fn(x)
+        x = x.reshape(FLAGS.batch_size * 28, 28)
+        scipy.misc.imsave('preview.png', x)
+        sys.exit()
 
     latent_spec = [
         (Uniform(62), False),
