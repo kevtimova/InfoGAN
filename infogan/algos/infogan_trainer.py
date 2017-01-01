@@ -9,6 +9,16 @@ import os
 
 TINY = 1e-8
 
+def dbg(inp):
+    def _debug_func(x):
+        import ipdb; ipdb.set_trace()  # XXX BREAKPOINT
+        # from IPython import embed; embed()  # XXX DEBUG
+        return False
+    debug_op = tf.py_func(_debug_func, [inp], [tf.bool])
+    with tf.control_dependencies(debug_op):
+        inp = tf.identity(inp, name='inp')
+    return inp
+
 
 class InfoGANTrainer(object):
     def __init__(self,
@@ -55,6 +65,9 @@ class InfoGANTrainer(object):
             fake_d, _, fake_reg_z_dist_info, _ = self.model.discriminate(fake_x)
 
             reg_z = self.model.reg_z(z_var)
+            
+            # TODO: It works here! But we don't really need it....
+            reg_z = dbg(reg_z)
 
             discriminator_loss = - tf.reduce_mean(tf.log(real_d + TINY) + tf.log(1. - fake_d + TINY))
             generator_loss = - tf.reduce_mean(tf.log(fake_d + TINY))
@@ -203,6 +216,10 @@ class InfoGANTrainer(object):
                 stacked_img.append(tf.concat(1, row_img))
             imgs = tf.concat(0, stacked_img)
             imgs = tf.expand_dims(imgs, 0)
+            
+            # TODO: Get the breakpoint to work here!
+            # imgs = dbg(imgs)
+            
             tf.image_summary("image_%d_%s" % (dist_idx, dist.__class__.__name__), imgs)
 
 
@@ -241,7 +258,6 @@ class InfoGANTrainer(object):
                     pbar.update(i)
                     x, _ = self.dataset.train.next_batch(self.batch_size)
                     x = self.noise_fn(x)
-                    import ipdb; ipdb.set_trace()
                     feed_dict = {self.input_tensor: x}
                     log_vals = sess.run([self.discriminator_trainer] + log_vars, feed_dict)[1:]
                     sess.run(self.generator_trainer, feed_dict)

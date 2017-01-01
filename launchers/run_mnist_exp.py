@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     # Optimization settings.
     gflags.DEFINE_integer("batch_size", 128, "SGD minibatch size.")
-    gflags.DEFINE_integer("updates_per_epoch", 100, "")
+    gflags.DEFINE_integer("updates_per_epoch", 1, "")
     gflags.DEFINE_integer("max_epoch", 50, "")
     gflags.DEFINE_float("info_reg_coeff", 1.0, "Hyperparameter for Mutual Information.")
     gflags.DEFINE_float("generator_learning_rate", 1e-3, "")
