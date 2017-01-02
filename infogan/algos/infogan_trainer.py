@@ -6,19 +6,9 @@ from progressbar import ETA, Bar, Percentage, ProgressBar
 from infogan.misc.distributions import Bernoulli, Gaussian, Categorical
 import sys
 import os
+import scipy.misc
 
 TINY = 1e-8
-
-def dbg(inp):
-    def _debug_func(x):
-        import ipdb; ipdb.set_trace()  # XXX BREAKPOINT
-        # from IPython import embed; embed()  # XXX DEBUG
-        return False
-    debug_op = tf.py_func(_debug_func, [inp], [tf.bool])
-    with tf.control_dependencies(debug_op):
-        inp = tf.identity(inp, name='inp')
-    return inp
-
 
 class InfoGANTrainer(object):
     def __init__(self,
@@ -28,6 +18,7 @@ class InfoGANTrainer(object):
                  noise_fn=lambda x: x,
                  exp_name="experiment",
                  log_dir="logs",
+                 custom_log_dir="custom_logs",
                  checkpoint_dir="ckt",
                  max_epoch=100,
                  updates_per_epoch=100,
@@ -54,6 +45,7 @@ class InfoGANTrainer(object):
         self.generator_trainer = None
         self.input_tensor = None
         self.log_vars = []
+        self.epoch = 0
 
     def init_opt(self):
         self.input_tensor = input_tensor = tf.placeholder(tf.float32, [self.batch_size, self.dataset.image_dim])
@@ -65,9 +57,6 @@ class InfoGANTrainer(object):
             fake_d, _, fake_reg_z_dist_info, _ = self.model.discriminate(fake_x)
 
             reg_z = self.model.reg_z(z_var)
-            
-            # TODO: It works here! But we don't really need it....
-            reg_z = dbg(reg_z)
 
             discriminator_loss = - tf.reduce_mean(tf.log(real_d + TINY) + tf.log(1. - fake_d + TINY))
             generator_loss = - tf.reduce_mean(tf.log(fake_d + TINY))
@@ -140,6 +129,23 @@ class InfoGANTrainer(object):
         with pt.defaults_scope(phase=pt.Phase.test):
             with tf.variable_scope("model", reuse=True) as scope:
                 self.visualize_all_factors()
+
+    def imsave_op(self, inp, img_name):
+        def _func(x):
+            # import pdb; pdb.set_trace()  # XXX BREAKPOINT
+            # from IPython import embed; embed()  # XXX DEBUG
+            try:
+                os.makedirs("{}/{}".format(self.custom_log_dir, self.exp_name))
+            except:
+                pass
+            scipy.misc.imsave("{}/{}/{}_{}.png".format(
+                self.custom_log_dir, self.exp_name, self.epoch, img_name),
+                np.reshape(x, [280, 280]))
+            return False
+        custom_op = tf.py_func(_func, [inp], [tf.bool])
+        with tf.control_dependencies(custom_op):
+            inp = tf.identity(inp, name='inp')
+        return inp
 
     def visualize_all_factors(self):
         with tf.Session():
@@ -216,9 +222,7 @@ class InfoGANTrainer(object):
                 stacked_img.append(tf.concat(1, row_img))
             imgs = tf.concat(0, stacked_img)
             imgs = tf.expand_dims(imgs, 0)
-            
-            # TODO: Get the breakpoint to work here!
-            # imgs = dbg(imgs)
+            imgs = self.imsave_op(imgs, "image_{}_{}".format(dist_idx, dist.__class__.__name__))
             
             tf.image_summary("image_%d_%s" % (dist_idx, dist.__class__.__name__), imgs)
 
@@ -280,3 +284,5 @@ class InfoGANTrainer(object):
                 sys.stdout.flush()
                 if np.any(np.isnan(avg_log_vals)):
                     raise ValueError("NaN detected!")
+
+                self.epoch += 1
