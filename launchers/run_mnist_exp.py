@@ -6,6 +6,7 @@ import tensorflow as tf
 import gflags
 import os
 import sys
+import numpy as np
 import infogan.misc.datasets as datasets
 from basicprop.noise import set_uniform_noise
 from basicprop.datasets import FG_PIXEL, BG_PIXEL
@@ -56,12 +57,21 @@ if __name__ == "__main__":
     mkdir_p(log_dir)
     mkdir_p(checkpoint_dir)
 
+
+    def normalize_fn(images):
+      images = images.astype(np.float32)
+      images = np.multiply(images, 1.0 / 255.0)
+      return images
+
     if FLAGS.dataset == 'MNIST':
         dataset = datasets.MnistDataset()
     elif FLAGS.dataset == 'LINE':
         dataset = datasets.BasicPropLineDataset()
     elif FLAGS.dataset == 'RECTS':
         dataset = datasets.BasicPropRectsDataset()
+    elif FLAGS.dataset == 'OLD':
+        dataset = datasets.OldBasicPropDataset()
+        normalize_fn = lambda x: x
     else:
         raise Exception("Please specify a valid dataset.")
 
@@ -93,6 +103,7 @@ if __name__ == "__main__":
         import scipy.misc
         x = dataset.train.next_batch(FLAGS.batch_size)[0]
         x = noise_fn(x)
+        x = normalize_fn(x)
         x = x.reshape(FLAGS.batch_size * 28, 28)
         scipy.misc.imsave('preview.png', x)
         sys.exit()
@@ -116,6 +127,7 @@ if __name__ == "__main__":
         model=model,
         dataset=dataset,
         noise_fn=noise_fn,
+        normalize_fn=normalize_fn,
         batch_size=FLAGS.batch_size,
         exp_name=FLAGS.experiment_name,
         log_dir=log_dir,

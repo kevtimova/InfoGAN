@@ -16,6 +16,7 @@ class InfoGANTrainer(object):
                  batch_size,
                  dataset=None,
                  noise_fn=lambda x: x,
+                 normalize_fn=lambda x: x,
                  exp_name="experiment",
                  log_dir="logs",
                  custom_log_dir="custom_logs",
@@ -32,10 +33,12 @@ class InfoGANTrainer(object):
         self.model = model
         self.dataset = dataset
         self.noise_fn = noise_fn
+        self.normalize_fn = normalize_fn
         self.batch_size = batch_size
         self.max_epoch = max_epoch
         self.exp_name = exp_name
         self.log_dir = log_dir
+        self.custom_log_dir = custom_log_dir
         self.checkpoint_dir = checkpoint_dir
         self.updates_per_epoch = updates_per_epoch
         self.generator_learning_rate = generator_learning_rate
@@ -223,7 +226,7 @@ class InfoGANTrainer(object):
             imgs = tf.concat(0, stacked_img)
             imgs = tf.expand_dims(imgs, 0)
             imgs = self.imsave_op(imgs, "image_{}_{}".format(dist_idx, dist.__class__.__name__))
-            
+
             tf.image_summary("image_%d_%s" % (dist_idx, dist.__class__.__name__), imgs)
 
 
@@ -262,6 +265,7 @@ class InfoGANTrainer(object):
                     pbar.update(i)
                     x, _ = self.dataset.train.next_batch(self.batch_size)
                     x = self.noise_fn(x)
+                    x = self.normalize_fn(x)
                     feed_dict = {self.input_tensor: x}
                     log_vals = sess.run([self.discriminator_trainer] + log_vars, feed_dict)[1:]
                     sess.run(self.generator_trainer, feed_dict)
@@ -272,6 +276,8 @@ class InfoGANTrainer(object):
                 print("Model saved in file: %s" % fn)
 
                 x, _ = self.dataset.train.next_batch(self.batch_size)
+                x = self.noise_fn(x)
+                x = self.normalize_fn(x)
 
                 summary_str = sess.run(summary_op, {self.input_tensor: x})
                 summary_writer.add_summary(summary_str, counter)
